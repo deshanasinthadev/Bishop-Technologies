@@ -32,6 +32,8 @@ const mimeTypes = {
   '.json': 'application/json; charset=utf-8',
   '.png': 'image/png',
   '.svg': 'image/svg+xml',
+  '.txt': 'text/plain; charset=utf-8',
+  '.xml': 'application/xml; charset=utf-8',
   '.webp': 'image/webp',
   '.woff': 'font/woff',
   '.woff2': 'font/woff2',
@@ -123,7 +125,7 @@ async function serveStatic(pathname, outgoing, head) {
   }
 
   const route = pathnameDecoded.replace(/\/+$/, '') || '/'
-  const file = appRoutes.has(route) ? indexFile : resolve(dist, pathnameDecoded.slice(1))
+  const file = appRoutes.has(route) ? resolve(dist, route.slice(1), 'index.html') : resolve(dist, pathnameDecoded.slice(1))
   if (!file.startsWith(dist + sep)) return sendText(outgoing, 404, 'Page not found.')
 
   try {

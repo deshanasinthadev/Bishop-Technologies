@@ -6,12 +6,17 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
+    "build:hosted": "vite build --mode hosted",
+    "dev:hosted": "vite --mode hosted --host 127.0.0.1",
+    "test": "node --test",
+
     "preview": "vite preview --host 0.0.0.0",
     "start": "node scripts/local-site.mjs"
   },
   "dependencies": {
     "@fontsource-variable/dm-sans": "^5.2.8",
     "@fontsource-variable/manrope": "^5.2.8",
+    "@supabase/supabase-js": "^2.119.2",
     "lucide-react": "^0.468.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"

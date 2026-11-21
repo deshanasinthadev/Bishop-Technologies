@@ -1,5 +1,5 @@
 import { useId, useState } from 'react'
-import { whatsappUrl } from './whatsapp.js'
+import { whatsappLink, whatsappUrl } from './whatsapp.js'
 
 const nameField = { name: 'name', label: 'Name', autoComplete: 'name', placeholder: 'Your name' }
 const phoneField = { name: 'phone', type: 'tel', autoComplete: 'tel', placeholder: 'Your phone number' }
@@ -10,7 +10,8 @@ const forms = {
     fields: [
       nameField,
       { ...phoneField, label: 'Phone number' },
-      { name: 'device', label: 'Device model', placeholder: 'Brand and model', wide: true },
+      { name: 'category', label: 'Device category', options: ['Laptop', 'Desktop PC', 'Phone', 'Other'] },
+      { name: 'device', label: 'Device brand and model', placeholder: 'Brand and model' },
       { name: 'issue', label: 'Issue', placeholder: 'Tell us what happened to your device', multiline: true },
     ],
   },
@@ -120,10 +121,12 @@ export function EnquiryForm({ kind, whatsapp }) {
   return (
     <form className="enquiry-form" onSubmit={handleSubmit} onInput={clearFeedback}>
       <div className="field-grid">
-        {fields.map(({ name, label, wide, multiline, ...attributes }) => (
+        {fields.map(({ name, label, wide, multiline, options, ...attributes }) => (
           <div key={name} className={wide || multiline ? 'field field-wide' : 'field'}>
             <label htmlFor={`${id}-${name}`}>{label}</label>
-            {multiline ? (
+            {options ? <select id={`${id}-${name}`} name={name} required defaultValue="">
+              <option value="" disabled>Select a device</option>{options.map((option) => <option key={option}>{option}</option>)}
+            </select> : multiline ? (
               <textarea id={`${id}-${name}`} name={name} rows={4} maxLength={2000} required {...attributes} />
             ) : (
               <input id={`${id}-${name}`} name={name} maxLength={120} required {...attributes} />
@@ -131,12 +134,14 @@ export function EnquiryForm({ kind, whatsapp }) {
           </div>
         ))}
       </div>
+      <p className="enquiry-privacy">The website keeps these details in this form. They go to Bishop Technologies only when you send the WhatsApp message.</p>
       {!canSend && (
-        <p className="notice">Online sending is unavailable right now. You can copy your enquiry below.</p>
+        <p className="notice">Copy your enquiry below, then paste it into your WhatsApp chat.</p>
       )}
       <button className="button button-primary" type="submit">
         {canSend ? 'Open WhatsApp' : 'Copy enquiry'}
       </button>
+      {!canSend && <a className="button button-secondary enquiry-chat" href={whatsappLink} target="_blank" rel="noopener noreferrer">Open WhatsApp</a>}
       <CopyFeedback status={result?.status} message={result?.message} />
     </form>
   )

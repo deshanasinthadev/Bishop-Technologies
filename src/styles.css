@@ -132,7 +132,27 @@ button, input, textarea { font: inherit; }
 .contact-option > svg { flex: none; color: var(--blue); }
 .contact-option h3 { font-size: 1rem; }
 .contact-option p { margin-top: 5px; font-size: .875rem; overflow-wrap: anywhere; }
-.contact-option a { display: inline-flex; align-items: center; min-height: 36px; font-weight: 650; }
+.contact-option .button { margin-top: 8px; }
+.home-actions { display: flex; flex-wrap: wrap; gap: .65rem; margin-top: 1rem; }
+.home-intro .home-actions { justify-content: center; }
+.enquiry-chat { margin: .75rem 0 0 .5rem; }
+.enquiry-privacy { margin-top: .75rem; color: var(--muted); }
+.service-item a { display: inline-block; margin-top: .3rem; }
+.enquiry-form select { width: 100%; min-height: 44px; border: 1px solid #cbd9ef; border-radius: 8px; padding: .6rem; font: inherit; background: #fff; color: inherit; }
+.floating-chat {
+  display: grid; place-items: center; position: fixed; z-index: 5;
+  right: max(1rem, env(safe-area-inset-right)); bottom: max(1rem, env(safe-area-inset-bottom));
+  width: 48px; height: 48px; border-radius: 50%; color: #fff; background: var(--blue);
+  box-shadow: 0 4px 14px #0a13242a;
+}
+.site-footer { padding-bottom: 3rem; }
+.business-info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 1rem; }
+.business-info-grid > div { border: 1px solid var(--line); border-radius: .7rem; padding: 1rem; }
+.business-info-grid ol { padding-left: 1.4rem; }
+.business-info-grid details { border-top: 1px solid var(--line); padding: .65rem 0; }
+.business-info-grid summary { cursor: pointer; font-weight: 650; }
+.business-info-grid details p { margin-top: .35rem; }
+.main-nav { flex-wrap: wrap; }
 
 .subpage-top { padding-top: 33px; }
 .subpage-hero { min-height: 295px; align-items: center; }

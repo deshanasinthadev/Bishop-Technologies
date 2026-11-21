@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { lazy, Suspense, useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
   CalendarDays, ChevronRight, CodeXml, Globe2, HardDrive, Laptop, MapPin,
@@ -8,7 +8,8 @@ import '@fontsource-variable/dm-sans'
 import '@fontsource-variable/manrope'
 import { defaultContent } from './content.js'
 import { CopyEnquiry, EnquiryForm } from './Enquiry.jsx'
-import { whatsappUrl } from './whatsapp.js'
+import { whatsappLink, whatsappUrl } from './whatsapp.js'
+import { About, CustomerReviews } from './TrustSections.jsx'
 import './styles.css'
 
 const links = [
@@ -21,17 +22,24 @@ const repairServices = [
   { icon: Laptop, title: 'Laptop repairs', description: 'Get help with screen, keyboard, battery, charging, or performance problems.' },
   { icon: Monitor, title: 'Desktop PC repairs', description: 'Find out what’s causing crashes, slowdowns, or a PC that won’t turn on.' },
   { icon: Smartphone, title: 'Phone repairs', description: 'Ask about screen damage, battery trouble, or charging issues.' },
+  { icon: Wrench, title: 'Hardware diagnostics', description: 'Describe faults with charging, startup, or storage so we can discuss what to check.' },
+  { icon: HardDrive, title: 'Motherboard and component repairs', description: 'Ask for an assessment if you suspect a board or component fault.' },
 ]
 
 const softwareServices = [
   { icon: Globe2, title: 'Business websites', description: 'Help customers learn about your business, see what you offer, and get in touch.' },
   { icon: CalendarDays, title: 'Online booking systems', description: 'Let customers book appointments online and keep your bookings in one place.' },
   { icon: CodeXml, title: 'Custom software', description: 'Manage jobs, customers, and other everyday work with software built around your business.' },
+  { icon: Monitor, title: 'Software installation and troubleshooting', description: 'Get help setting up software or resolving problems with an existing installation.' },
+  { icon: Laptop, title: 'Remote IT support', description: 'Describe the issue to find out whether it can be handled remotely.' },
 ]
 
 const categoryIcons = { 'hard-drive': HardDrive, memory: MemoryStick, plug: Plug, mouse: Mouse }
 const heroImages = { repair: '/images/hero-repair.webp', software: '/images/hero-software.webp' }
 const paths = ['/', ...links.map((link) => link.path)]
+const hosted = import.meta.env.MODE === 'hosted'
+const HostedStore = lazy(() => import('./HostedStore.jsx').then(({ HostedStore }) => ({ default: HostedStore })))
+const HostedProductCard = lazy(() => import('./HostedStore.jsx').then(({ HostedProductCard }) => ({ default: HostedProductCard })))
 
 function Logo() {
   return (
@@ -48,9 +56,13 @@ function Header({ path, business }) {
       <div className="shell header-inner">
         <Logo />
         <nav aria-label="Main navigation" className="main-nav">
+          <a href="/" aria-current={path === '/' ? 'page' : undefined}>Home</a>
           {links.map(({ path: href, label }) => (
             <a key={href} href={href} aria-current={path === href ? 'page' : undefined}>{label}</a>
           ))}
+          <a href="/#about">About Us</a>
+          <a href="/#contact">Contact</a>
+          <a href={whatsappLink} target="_blank" rel="noopener noreferrer">WhatsApp</a>
         </nav>
         <div className="header-location"><MapPin size={15} aria-hidden="true" />{business.country}</div>
       </div>
@@ -103,11 +115,12 @@ function HeroPanel({ kind, title, description, label, href, Icon }) {
 }
 
 function CategoryTile({ category }) {
-  const Icon = categoryIcons[category.icon]
+  const Icon = categoryIcons[category.icon] || HardDrive
   return (
     <a className="category-tile" href={`/store?category=${category.id}`}>
       <div className="category-visual">
-        <Artwork src={category.image} label={`${category.name} category illustration`} Icon={Icon} />
+        {category.image ? <Artwork src={category.image} label={`${category.name} category illustration`} Icon={Icon} />
+          : <div className="artwork-placeholder"><Icon size={30} aria-hidden="true" /></div>}
       </div>
       <div className="category-caption">
         <h3>{category.name}</h3>
@@ -118,9 +131,9 @@ function CategoryTile({ category }) {
 }
 
 function Contact({ business }) {
-  const chat = whatsappUrl('', business.whatsapp)
-  const directions = business.directionsUrl || (business.address &&
-    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(business.address)}`)
+  const directions = business.directionsUrl || (business.address
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(business.address)}`
+    : defaultContent.business.directionsUrl)
   return (
     <section className="contact-section" id="contact" aria-labelledby="contact-heading">
       <div className="shell contact-inner">
@@ -133,9 +146,7 @@ function Contact({ business }) {
             <MessageCircle size={22} aria-hidden="true" />
             <div>
               <h3>WhatsApp</h3>
-              {chat
-                ? <a href={chat} target="_blank" rel="noreferrer">Chat on WhatsApp</a>
-                : <p>Online chat is currently unavailable.</p>}
+              <a className="button button-secondary" href={whatsappLink} target="_blank" rel="noopener noreferrer">Chat on WhatsApp</a>
             </div>
           </div>
           <div className="contact-option">
@@ -144,9 +155,7 @@ function Contact({ business }) {
               <h3>Shop directions</h3>
               {business.address && <p>{business.address}</p>}
               {business.hours && <p>{business.hours}</p>}
-              {directions
-                ? <a href={directions} target="_blank" rel="noreferrer">Get directions</a>
-                : <p>Shop location to be added.</p>}
+              <a className="button button-secondary" href={directions} target="_blank" rel="noopener noreferrer">Get Directions</a>
             </div>
           </div>
         </div>
@@ -163,7 +172,7 @@ function CompletedWork({ projects }) {
       <div className="project-grid">
         {projects.map((project) => (
           <article className="project-card" key={project.id}>
-            <Artwork src={project.image} Icon={CodeXml} />
+            <Artwork src={project.image} label={project.name} Icon={CodeXml} />
             <div>
               <h3>{project.name}</h3>
               {project.description && <p>{project.description}</p>}
@@ -176,13 +185,17 @@ function CompletedWork({ projects }) {
   )
 }
 
-function Home({ business, categories, projects }) {
+function Home({ business, categories, projects, featured }) {
   return (
     <>
       <section className="home-hero shell" aria-labelledby="home-heading">
         <div className="home-intro">
           <h1 id="home-heading">Tech that works <span>for you.</span></h1>
           <p>Device repairs, tech essentials, and digital tools for businesses in Sri Lanka.</p>
+          <div className="home-actions">
+            <a className="button button-primary" href="/repair#enquiry">Request a Repair</a>
+            <a className="button button-secondary" href="/store">Browse Products</a>
+          </div>
         </div>
         <div className="hero-grid">
           <HeroPanel kind="repair" Icon={Wrench} title="Device Repairs"
@@ -204,9 +217,17 @@ function Home({ business, categories, projects }) {
         <div className="category-grid">
           {categories.map((category) => <CategoryTile category={category} key={category.id} />)}
         </div>
-        <p className="image-note">Illustrative category photos</p>
+        {categories.some(({ image }) => image) && <p className="image-note">Illustrative category photos</p>}
       </section>
+      {featured.length > 0 && <section className="work-section shell catalog" aria-labelledby="featured-heading">
+        <h2 id="featured-heading">Featured Products</h2>
+        <Suspense fallback={<p role="status">Loading featured products…</p>}><div className="product-grid">
+          {featured.map((product) => <HostedProductCard key={product.id} product={product} business={business} />)}
+        </div></Suspense>
+      </section>}
+      <About />
       <CompletedWork projects={projects} />
+      <CustomerReviews />
       <Contact business={business} />
     </>
   )
@@ -218,7 +239,7 @@ function ServicePage({ kind, whatsapp }) {
   const title = repair ? 'Device Repair Services' : 'Websites & Software for Your Business'
   const description = repair
     ? 'Get help with a laptop, desktop PC, or phone that isn’t working as it should.'
-    : 'Get a website, booking system, or custom tool that makes running your business easier.'
+    : 'Get a website, booking system, custom tool, or IT support for your business.'
   const services = repair ? repairServices : softwareServices
   return (
     <>
@@ -230,16 +251,20 @@ function ServicePage({ kind, whatsapp }) {
             <span className="hero-icon"><Icon size={22} aria-hidden="true" /></span>
             <h1>{title}</h1>
             <p>{description}</p>
+            <div className="home-actions">
+              <a className="button button-primary" href="#enquiry">{repair ? 'Request a Repair' : 'Request a Quote'}</a>
+              <a className="button button-secondary" href={whatsappLink} target="_blank" rel="noopener noreferrer">Chat on WhatsApp</a>
+            </div>
           </div>
         </div>
       </section>
       <div className="shell service-layout">
         <section className="service-list" aria-labelledby="services-heading">
-          <h2 id="services-heading">{repair ? 'What we repair' : 'What we build'}</h2>
+          <h2 id="services-heading">{repair ? 'What we repair' : 'Software and digital services'}</h2>
           {services.map(({ icon: ServiceIcon, title: name, description: detail }) => (
             <article className="service-item" key={name}>
               <span className="service-icon"><ServiceIcon size={22} aria-hidden="true" /></span>
-              <div><h3>{name}</h3><p>{detail}</p></div>
+              <div><h3>{name}</h3><p>{detail}</p><a href="#enquiry">{repair ? 'Request a Repair' : 'Request a Quote'}</a></div>
             </article>
           ))}
         </section>
@@ -274,7 +299,7 @@ function ProductCard({ item, category, preview, whatsapp }) {
         )}
         {chat
           ? <a className="button button-secondary" href={chat} target="_blank" rel="noreferrer">Ask on WhatsApp</a>
-          : <CopyEnquiry message={message} />}
+          : <><a className="button button-secondary" href={whatsappLink} target="_blank" rel="noopener noreferrer">Ask on WhatsApp</a><CopyEnquiry message={message} /></>}
       </div>
     </article>
   )
@@ -304,7 +329,7 @@ function Store({ business, categories, products }) {
           </a>
         ))}
       </nav>
-      {!whatsappUrl('', business.whatsapp) && <p className="notice store-notice">Online sending is unavailable right now. You can copy a product enquiry below.</p>}
+      {!whatsappUrl('', business.whatsapp) && <p className="notice store-notice">Copy a product enquiry to paste into your WhatsApp chat.</p>}
       <div className="product-grid">
         {items.map(({ item, category, preview, key }) => (
           <ProductCard key={key} item={item} category={category} preview={preview} whatsapp={business.whatsapp} />
@@ -317,12 +342,23 @@ function Store({ business, categories, products }) {
 
 function App() {
   const path = window.location.pathname.replace(/\/+$/, '') || '/'
-  const route = paths.includes(path) ? path : '/'
-  const [content, setContent] = useState(defaultContent)
+  const productSlug = hosted ? /^\/store\/([a-z0-9]+(?:-[a-z0-9]+)*)$/.exec(path)?.[1] : undefined
+  const route = productSlug ? '/store' : paths.includes(path) ? path : '/'
+  const [content, setContent] = useState(() => hosted ? { ...defaultContent, categories: [] } : defaultContent)
+  const [featured, setFeatured] = useState([])
   const { business, categories, products, projects } = content
 
   useEffect(() => {
     const controller = new AbortController()
+    if (hosted) {
+      import('./catalog-client.js').then(({ catalogRpc }) => catalogRpc('bishop_site_info', {}, controller.signal)).then((info) => {
+        if (controller.signal.aborted) return
+        setContent({ ...defaultContent, business: { ...defaultContent.business, ...info.business }, projects: info.projects,
+          categories: info.categories.map((item) => ({ ...defaultContent.categories.find(({ id }) => id === item.slug), ...item, id: item.slug })) })
+        setFeatured(info.featured)
+      }).catch(() => {})
+      return () => controller.abort()
+    }
     fetch('/api/content', { signal: controller.signal })
       .then((response) => response.ok ? response.json() : null)
       .then((data) => { if (data?.content) setContent(data.content) })
@@ -335,7 +371,9 @@ function App() {
       section?.scrollIntoView()
       section?.querySelector('h2')?.focus({ preventScroll: true })
     }
-    if (window.location.hash === '#contact') document.getElementById('contact')?.scrollIntoView()
+    if (window.location.hash === '#contact' || window.location.hash === '#about') {
+      document.getElementById(window.location.hash.slice(1))?.scrollIntoView()
+    }
   }, [route])
 
   return (
@@ -343,18 +381,23 @@ function App() {
       <a className="skip-link" href="#main-content">Skip to content</a>
       <Header path={route} business={business} />
       <main id="main-content" tabIndex={-1}>
-        {route === '/' && <Home business={business} categories={categories} projects={projects} />}
+        {route === '/' && <Home business={business} categories={categories} projects={projects} featured={featured} />}
         {route === '/repair' && <ServicePage kind="repair" whatsapp={business.whatsapp} />}
-        {route === '/store' && <Store business={business} categories={categories} products={products} />}
+        {route === '/store' && (hosted
+          ? <Suspense fallback={<p className="shell" role="status">Loading store…</p>}><HostedStore business={business} slug={productSlug} /></Suspense>
+          : <Store business={business} categories={categories} products={products} />)}
         {route === '/web-software' && <ServicePage kind="software" whatsapp={business.whatsapp} />}
       </main>
       <Footer business={business} />
+      <a className="floating-chat" aria-label="Chat on WhatsApp" href={whatsappLink} target="_blank" rel="noopener noreferrer"><MessageCircle size={23} aria-hidden="true" /></a>
     </>
   )
 }
 
 const root = createRoot(document.getElementById('root'))
-if (/^\/admin\/?$/.test(window.location.pathname)) {
+if (hosted && /^\/admin(?:\/|$)/.test(window.location.pathname)) {
+  import('./HostedAdmin.jsx').then(({ HostedAdmin }) => root.render(<HostedAdmin />))
+} else if (/^\/admin\/?$/.test(window.location.pathname)) {
   import('./Admin.jsx').then(({ Admin }) => root.render(<Admin />))
 } else {
   root.render(<App />)
