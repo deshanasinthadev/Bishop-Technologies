@@ -27,8 +27,8 @@ If you already use the separately hosted [ChatGPT Site Editor](https://bishop-te
 | `npm start` | Serve the PC build and filesystem content API on loopback. |
 | `npm run dev:hosted` | Develop against a non-production Supabase project. Use a Vercel Preview to test the image endpoint. |
 | `npm run build:hosted` | Generate the hosted build. Use `-- --outDir dist-hosted` if retaining a separate PC build. |
-| `npm test` | Run WhatsApp tests and the database fixture when its test runtime is configured. |
+| `npm test` | Run endpoint, configuration, and WhatsApp tests, plus the database fixture when its runtime is configured. |
 
-See the [hosting and staff guide](docs/hosting.md) for Supabase setup, local integration tests, owner onboarding, and Vercel deployment. The bundled categories illustrate types of products. The hosted Store only displays published database records with active categories. Both versions preserve the business’s Google Maps and WhatsApp links.
+See [Architecture](ARCHITECTURE.md), the [Staff guide](ADMIN_GUIDE.md), [Deployment](DEPLOYMENT.md), and the [release audit](docs/release-audit.md). See the [hosting and staff guide](docs/hosting.md) for Supabase setup, local integration tests, owner onboarding, and Vercel deployment. The bundled categories illustrate types of products. The hosted Store only displays published database records with active categories. Both versions preserve the business’s Google Maps and WhatsApp links.
 
-Repair and software enquiries are sent by the customer through WhatsApp. The current WhatsApp Business short link opens the conversation. When no confirmed phone number is configured for prefilling, customers can copy the enquiry text and paste it themselves.
+The homepage service finder links customers to repairs, the Store, or digital services. The repair request asks for device, problem, and contact information before showing a review. Customers submit the request or quote by sending it themselves in WhatsApp. With the existing Business short link they copy and paste the message. When a verified number is configured the site can prepare the message for them. Customers can attach repair photos in the chat. See the [customer experience audit](docs/customer-experience.md).

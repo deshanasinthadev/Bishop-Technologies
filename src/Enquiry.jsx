@@ -4,27 +4,12 @@ import { whatsappLink, whatsappUrl } from './whatsapp.js'
 const nameField = { name: 'name', label: 'Name', autoComplete: 'name', placeholder: 'Your name' }
 const phoneField = { name: 'phone', type: 'tel', autoComplete: 'tel', placeholder: 'Your phone number' }
 
-const forms = {
-  repair: {
-    opening: 'Hi Bishop Technologies, I would like to ask about a repair.',
-    fields: [
-      nameField,
-      { ...phoneField, label: 'Phone number' },
-      { name: 'category', label: 'Device category', options: ['Laptop', 'Desktop PC', 'Phone', 'Other'] },
-      { name: 'device', label: 'Device brand and model', placeholder: 'Brand and model' },
-      { name: 'issue', label: 'Issue', placeholder: 'Tell us what happened to your device', multiline: true },
-    ],
-  },
-  quote: {
-    opening: 'Hi Bishop Technologies, I would like to request a quote for a project.',
-    fields: [
-      nameField,
-      { name: 'organisation', label: 'Business name', autoComplete: 'organization', placeholder: 'Your business name' },
-      { ...phoneField, label: 'Contact number', wide: true },
-      { name: 'description', label: 'What do you need?', placeholder: 'Tell us a little about your project', multiline: true },
-    ],
-  },
-}
+const fields = [
+  nameField,
+  { name: 'organisation', label: 'Business name', autoComplete: 'organization', placeholder: 'Your business name' },
+  { ...phoneField, label: 'Contact number', wide: true },
+  { name: 'description', label: 'What do you need?', placeholder: 'Tell us a little about your project', multiline: true },
+]
 
 async function copyMessage(message) {
   try {
@@ -58,21 +43,21 @@ export function CopyEnquiry({ message, className = 'button button-secondary', ch
   const [status, setStatus] = useState('')
 
   async function handleCopy() {
+    setStatus('copying')
     setStatus(await copyMessage(message) ? 'copied' : 'manual')
   }
 
   return (
     <div className="copy-enquiry">
-      <button className={className} type="button" onClick={handleCopy}>{children}</button>
+      <button className={className} type="button" disabled={status === 'copying'} onClick={handleCopy}>{status === 'copying' ? 'Copying…' : children}</button>
       <CopyFeedback status={status} message={message} />
     </div>
   )
 }
 
-export function EnquiryForm({ kind, whatsapp }) {
+export function EnquiryForm({ whatsapp }) {
   const id = useId()
   const [result, setResult] = useState(null)
-  const { opening, fields } = forms[kind]
   const canSend = Boolean(whatsappUrl('', whatsapp))
 
   async function handleSubmit(event) {
@@ -103,7 +88,7 @@ export function EnquiryForm({ kind, whatsapp }) {
       lines.push(`${field.label}: ${value}`)
     }
 
-    const message = [opening, '', ...lines].join('\n')
+    const message = ['Hi Bishop Technologies, I would like to request a quote for a project.', '', ...lines].join('\n')
     if (canSend) {
       window.open(whatsappUrl(message, whatsapp), '_blank', 'noopener,noreferrer')
       return
@@ -121,12 +106,10 @@ export function EnquiryForm({ kind, whatsapp }) {
   return (
     <form className="enquiry-form" onSubmit={handleSubmit} onInput={clearFeedback}>
       <div className="field-grid">
-        {fields.map(({ name, label, wide, multiline, options, ...attributes }) => (
+        {fields.map(({ name, label, wide, multiline, ...attributes }) => (
           <div key={name} className={wide || multiline ? 'field field-wide' : 'field'}>
             <label htmlFor={`${id}-${name}`}>{label}</label>
-            {options ? <select id={`${id}-${name}`} name={name} required defaultValue="">
-              <option value="" disabled>Select a device</option>{options.map((option) => <option key={option}>{option}</option>)}
-            </select> : multiline ? (
+            {multiline ? (
               <textarea id={`${id}-${name}`} name={name} rows={4} maxLength={2000} required {...attributes} />
             ) : (
               <input id={`${id}-${name}`} name={name} maxLength={120} required {...attributes} />

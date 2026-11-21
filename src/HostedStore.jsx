@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { catalogRpc, imageUrl } from './catalog-client.js'
+import { catalogConfigured, catalogRpc, imageUrl } from './catalog-client.js'
 import { CopyEnquiry } from './Enquiry.jsx'
 import { whatsappLink, whatsappUrl } from './whatsapp.js'
 import './catalog.css'
@@ -7,11 +7,14 @@ import './catalog.css'
 const currency = new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR', maximumFractionDigits: 2 })
 const pageSize = 24
 
-function ProductEnquiry({ product, variant, business }) {
-  const message = ['Hello Bishop Technologies, I would like to enquire about', product.name + (variant ? ' (' + variant.name + ', SKU ' + variant.sku + ')' : '') + '.'].join(' ')
+function ProductEnquiry({ product, variant, business, compatibility = false }) {
+  const item = product.name + (variant ? ' (' + variant.name + ', SKU ' + variant.sku + ')' : '')
+  const message = compatibility
+    ? 'Hello Bishop Technologies, can you check whether ' + item + ' is compatible with my device? My device brand and model: '
+    : 'Hello Bishop Technologies, I would like to enquire about ' + item + '.'
   const prefilled = whatsappUrl(message, business.whatsapp)
   return <div className="catalog-actions">
-    <a className="button button-secondary" href={prefilled || whatsappLink} target="_blank" rel="noopener noreferrer">WhatsApp Enquiry</a>
+    <a className="button button-secondary" href={prefilled || whatsappLink} target="_blank" rel="noopener noreferrer">{compatibility ? 'Ask Us on WhatsApp' : 'WhatsApp Enquiry'}</a>
     {!prefilled && <CopyEnquiry message={message} />}
   </div>
 }
@@ -28,13 +31,13 @@ export function HostedProductCard({ product, business }) {
   const available = product.variants.find(({ availability }) => availability === 'In Stock')
     || product.variants.find(({ availability }) => availability === 'Available on Request') || product.variants[0]
   return <article className="product-card">
-    <ProductImage image={product.images[0]} name={product.name} />
+    <ProductImage key={product.images[0]?.path} image={product.images[0]} name={product.name} />
     <div className="product-content">
       {product.brand && <p>{product.brand}</p>}
       <h2>{product.name}</h2>
       {product.specifications && <p className="catalog-summary">{product.specifications}</p>}
       <p>{prices.length ? (product.variants.length > 1 ? 'From ' : '') + currency.format(Math.min(...prices)) : 'Enquire for price'}</p>
-      {available && <p>{available.availability}</p>}
+      {available && <p>{product.variants.length > 1 ? 'Availability varies by variant' : available.availability}</p>}
       <a className="button button-primary" href={'/store/' + product.slug}>View Details</a>
       <ProductEnquiry product={product} variant={product.variants.length === 1 ? available : null} business={business} />
     </div>
@@ -66,6 +69,11 @@ function ProductDetails({ product, business }) {
         </select></label>}
         {variant && <p aria-live="polite">{variant.name} · SKU {variant.sku} · {variant.availability} · {variant.price === null ? 'Enquire for price' : currency.format(variant.price)}</p>}
         <ProductEnquiry product={product} variant={variant} business={business} />
+        <details className="catalog-disclosure">
+          <summary>Not sure if it fits your device?</summary>
+          <p>Share your device brand and exact model so the shop can check the specifications for this version.</p>
+          <ProductEnquiry product={product} variant={variant} business={business} compatibility />
+        </details>
       </div>
     </article>
   </>
@@ -91,6 +99,7 @@ export function HostedStore({ business, slug }) {
   }, [search])
 
   useEffect(() => {
+    if (!catalogConfigured) return
     const controller = new AbortController()
     setStatus('loading')
     catalogRpc('bishop_catalog', { search_term: term, category_slug: category, brand_name: brand, sort_order: sort,
@@ -107,15 +116,25 @@ export function HostedStore({ business, slug }) {
 
   const update = (setter) => (event) => { setter(event.target.value); setPage(1) }
   const details = { ...business, ...catalog?.business }
+  if (!catalogConfigured) return <section className="shell store-page catalog">
+    <h1>{slug ? 'Product details' : 'Technology Store'}</h1>
+    <p>The online catalog is currently unavailable.</p>
+    <a className="button button-secondary" href={whatsappLink}>Ask about products on WhatsApp</a>
+  </section>
+
   return <section className="shell store-page catalog">
     {!slug && <>
       <div className="store-intro"><h1>Technology Store</h1><p>Explore products, compare options, and enquire about availability.</p></div>
       <div className="catalog-filters">
-        <label>Search products<input type="search" value={search} onChange={update(setSearch)} maxLength={120} /></label>
+        <label>Search products<input type="search" value={search} onChange={update(setSearch)} maxLength={120} placeholder="Product name, brand or model" /></label>
         <label>Category<select value={category} onChange={update(setCategory)}>
           <option value="">All categories</option>
           {(catalog?.categories || []).map((item) => <option key={item.id} value={item.slug}>{item.name}</option>)}
         </select></label>
+      </div>
+      <details className="catalog-disclosure">
+        <summary>More filters and sorting{(brand || min || max || sort !== 'featured') && ' · active'}</summary>
+        <div className="catalog-filters">
         {!!catalog?.brands.length && <label>Brand<select value={brand} onChange={update(setBrand)}>
           <option value="">All brands</option>{catalog.brands.map((name) => <option key={name}>{name}</option>)}
         </select></label>}
@@ -125,7 +144,8 @@ export function HostedStore({ business, slug }) {
         </select></label>
         <label>Min price (LKR)<input type="number" min="0" value={min} onChange={update(setMin)} /></label>
         <label>Max price (LKR)<input type="number" min="0" value={max} onChange={update(setMax)} /></label>
-      </div>
+        </div>
+      </details>
     </>}
     {status === 'loading' && <p role="status">Loading products…</p>}
     {status === 'error' && <div role="alert"><p>The catalog is temporarily unavailable.</p><button className="button button-secondary" type="button" onClick={() => setRetry(retry + 1)}>Try again</button></div>}

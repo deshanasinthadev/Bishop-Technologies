@@ -1,14 +1,14 @@
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 
-const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
-const escape = (value) => String(value).replace(/[&<>"']/g, (character) =>
-  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character])
+import { escapeHtml as escape, productionOrigin } from '../server/seo.js'
+import { hostedConfig } from '../src/hosted-config.js'
 
+const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 async function fetchProduct(slug) {
-  const url = process.env.VITE_SUPABASE_URL
-  const key = process.env.VITE_SUPABASE_PUBLISHABLE_KEY
-  if (!url || !key?.startsWith('sb_publishable_')) throw new Error('Catalog configuration missing')
+  const config = hostedConfig(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_PUBLISHABLE_KEY)
+  if (!config) throw new Error('Catalog configuration missing')
+  const { url, key } = config
   const response = await fetch(new URL('/rest/v1/rpc/bishop_catalog', url), {
     method: 'POST',
     headers: { apikey: key, 'Content-Type': 'application/json' },
@@ -42,7 +42,7 @@ export default async function handler(request, response) {
       '<meta property="og:description" content="' + escape(description) + '">',
     ]
     if (indexable && process.env.SITE_ORIGIN) {
-      const canonical = new URL('/store/' + slug, process.env.SITE_ORIGIN).href
+      const canonical = productionOrigin(process.env.SITE_ORIGIN) + '/store/' + slug
       meta.push('<link rel="canonical" href="' + escape(canonical) + '">')
       meta.push('<meta property="og:url" content="' + escape(canonical) + '">')
     }

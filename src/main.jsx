@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
   CalendarDays, ChevronRight, CodeXml, Globe2, HardDrive, Laptop, MapPin,
@@ -9,7 +9,11 @@ import '@fontsource-variable/manrope'
 import { defaultContent } from './content.js'
 import { CopyEnquiry, EnquiryForm } from './Enquiry.jsx'
 import { whatsappLink, whatsappUrl } from './whatsapp.js'
-import { About, CustomerReviews } from './TrustSections.jsx'
+import { About, CustomerReviews, CustomerFaq, RepairProcess } from './TrustSections.jsx'
+import { PageErrorBoundary } from './PageErrorBoundary.jsx'
+import { RepairRequest } from './RepairRequest.jsx'
+import { ServiceFinder } from './ServiceFinder.jsx'
+import { deviceCategories, homeJourneys } from './customer-copy.js'
 import './styles.css'
 
 const links = [
@@ -40,6 +44,9 @@ const paths = ['/', ...links.map((link) => link.path)]
 const hosted = import.meta.env.MODE === 'hosted'
 const HostedStore = lazy(() => import('./HostedStore.jsx').then(({ HostedStore }) => ({ default: HostedStore })))
 const HostedProductCard = lazy(() => import('./HostedStore.jsx').then(({ HostedProductCard }) => ({ default: HostedProductCard })))
+const StaffEditor = hosted
+  ? lazy(() => import('./HostedAdmin.jsx').then(({ HostedAdmin }) => ({ default: HostedAdmin })))
+  : lazy(() => import('./Admin.jsx').then(({ Admin }) => ({ default: Admin })))
 
 function Logo() {
   return (
@@ -99,7 +106,7 @@ function Artwork({ src, label, Icon, className = '', loading = 'lazy' }) {
   )
 }
 
-function HeroPanel({ kind, title, description, label, href, Icon }) {
+function HeroPanel({ kind, title, description, Icon }) {
   return (
     <article className={`hero-panel hero-${kind}`}>
       <Artwork src={heroImages[kind]} Icon={Icon} className="hero-image" loading="eager" />
@@ -108,7 +115,6 @@ function HeroPanel({ kind, title, description, label, href, Icon }) {
         <span className="hero-icon"><Icon size={22} aria-hidden="true" /></span>
         <h2>{title}</h2>
         <p>{description}</p>
-        <a className="button button-primary" href={href}>{label}</a>
       </div>
     </article>
   )
@@ -164,18 +170,23 @@ function Contact({ business }) {
   )
 }
 
-function CompletedWork({ projects }) {
-  if (!projects.length) return null
+function CompletedWork({ projects, repairs = false }) {
+  const entries = projects.filter((project) => Boolean(project.device_category) === repairs)
+  if (!entries.length) return null
+  const headingId = repairs ? 'repair-gallery-heading' : 'work-heading'
   return (
-    <section className="work-section shell" aria-labelledby="work-heading">
-      <h2 id="work-heading">Completed work</h2>
+    <section className="work-section shell" aria-labelledby={headingId}>
+      <h2 id={headingId}>{repairs ? 'Repair gallery' : 'Completed work'}</h2>
       <div className="project-grid">
-        {projects.map((project) => (
+        {entries.map((project) => (
           <article className="project-card" key={project.id}>
             <Artwork src={project.image} label={project.name} Icon={CodeXml} />
             <div>
               <h3>{project.name}</h3>
+              {repairs && <p>{deviceCategories.find(({ id }) => id === project.device_category)?.label} · {project.problem}</p>}
               {project.description && <p>{project.description}</p>}
+              {repairs && project.repair_date && <p><time dateTime={project.repair_date}>{project.repair_date}</time></p>}
+              {repairs && <a href="/repair">See repair services</a>}
               {project.url && <a href={project.url}>View project</a>}
             </div>
           </article>
@@ -190,22 +201,21 @@ function Home({ business, categories, projects, featured }) {
     <>
       <section className="home-hero shell" aria-labelledby="home-heading">
         <div className="home-intro">
-          <h1 id="home-heading">Tech that works <span>for you.</span></h1>
-          <p>Device repairs, tech essentials, and digital tools for businesses in Sri Lanka.</p>
+          <h1 id="home-heading">Your technology, <span>our expertise.</span></h1>
+          <p>Computer and phone repairs, technology products, and websites and software for businesses in Sri Lanka.</p>
           <div className="home-actions">
-            <a className="button button-primary" href="/repair#enquiry">Request a Repair</a>
-            <a className="button button-secondary" href="/store">Browse Products</a>
+            {homeJourneys.map(({ label, href }, index) =>
+              <a className={'button button-' + (index === 0 ? 'primary' : 'secondary')} key={href} href={href}>{label}</a>)}
           </div>
         </div>
         <div className="hero-grid">
           <HeroPanel kind="repair" Icon={Wrench} title="Device Repairs"
-            description="Get your laptop, desktop PC, or phone working again."
-            label="Book a Repair" href="/repair#enquiry" />
+            description="Get help with a laptop, desktop computer, or phone." />
           <HeroPanel kind="software" Icon={CodeXml} title="Web & Software"
-            description="Websites, online booking, and software for your business."
-            label="Discuss a Project" href="/web-software#enquiry" />
+            description="Websites, online booking, and software for your business." />
         </div>
       </section>
+      <ServiceFinder />
       <section className="store-preview shell" aria-labelledby="store-preview-heading">
         <div className="section-heading">
           <div>
@@ -226,8 +236,11 @@ function Home({ business, categories, projects, featured }) {
         </div></Suspense>
       </section>}
       <About />
+      <RepairProcess />
+      <CompletedWork projects={projects} repairs />
       <CompletedWork projects={projects} />
       <CustomerReviews />
+      <CustomerFaq />
       <Contact business={business} />
     </>
   )
@@ -269,11 +282,12 @@ function ServicePage({ kind, whatsapp }) {
           ))}
         </section>
         <section className="form-card" id="enquiry" aria-labelledby="enquiry-heading">
-          <h2 id="enquiry-heading" tabIndex={-1}>{repair ? 'Book a Repair' : 'Request a Quote'}</h2>
+          <h2 id="enquiry-heading" tabIndex={-1}>{repair ? 'Request a Repair' : 'Request a Quote'}</h2>
           <p>{repair ? 'Tell us about your device and what needs fixing.' : 'Tell us a little about your business and what you need.'}</p>
-          <EnquiryForm kind={repair ? 'repair' : 'quote'} whatsapp={whatsapp} />
+          {repair ? <RepairRequest whatsapp={whatsapp} /> : <EnquiryForm whatsapp={whatsapp} />}
         </section>
       </div>
+      {repair && <RepairProcess />}
     </>
   )
 }
@@ -381,24 +395,29 @@ function App() {
       <a className="skip-link" href="#main-content">Skip to content</a>
       <Header path={route} business={business} />
       <main id="main-content" tabIndex={-1}>
-        {route === '/' && <Home business={business} categories={categories} projects={projects} featured={featured} />}
-        {route === '/repair' && <ServicePage kind="repair" whatsapp={business.whatsapp} />}
-        {route === '/store' && (hosted
-          ? <Suspense fallback={<p className="shell" role="status">Loading store…</p>}><HostedStore business={business} slug={productSlug} /></Suspense>
-          : <Store business={business} categories={categories} products={products} />)}
-        {route === '/web-software' && <ServicePage kind="software" whatsapp={business.whatsapp} />}
+        <PageErrorBoundary title="This page is temporarily unavailable">
+          {route === '/' && <Home business={business} categories={categories} projects={projects} featured={featured} />}
+          {route === '/repair' && <ServicePage kind="repair" whatsapp={business.whatsapp} />}
+          {route === '/store' && (hosted
+            ? <Suspense fallback={<p className="shell" role="status">Loading store…</p>}><HostedStore business={business} slug={productSlug} /></Suspense>
+            : <Store business={business} categories={categories} products={products} />)}
+          {route === '/web-software' && <ServicePage kind="software" whatsapp={business.whatsapp} />}
+        </PageErrorBoundary>
       </main>
+      {route !== '/repair' && route !== '/web-software' && <a className="floating-chat" aria-label="Chat on WhatsApp" href={whatsappLink} target="_blank" rel="noopener noreferrer"><MessageCircle size={23} aria-hidden="true" /></a>}
       <Footer business={business} />
-      <a className="floating-chat" aria-label="Chat on WhatsApp" href={whatsappLink} target="_blank" rel="noopener noreferrer"><MessageCircle size={23} aria-hidden="true" /></a>
     </>
   )
 }
 
 const root = createRoot(document.getElementById('root'))
-if (hosted && /^\/admin(?:\/|$)/.test(window.location.pathname)) {
-  import('./HostedAdmin.jsx').then(({ HostedAdmin }) => root.render(<HostedAdmin />))
-} else if (/^\/admin\/?$/.test(window.location.pathname)) {
-  import('./Admin.jsx').then(({ Admin }) => root.render(<Admin />))
+const adminPath = hosted ? /^\/admin(?:\/|$)/ : /^\/admin\/?$/
+if (adminPath.test(window.location.pathname)) {
+  root.render(<PageErrorBoundary title="The editor is temporarily unavailable">
+    <Suspense fallback={<p className="shell" role="status">Loading editor…</p>}>
+      <StaffEditor />
+    </Suspense>
+  </PageErrorBoundary>)
 } else {
   root.render(<App />)
 }

@@ -4,13 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
+    "dev": "vite --host 127.0.0.1",
     "build": "vite build",
     "build:hosted": "vite build --mode hosted",
     "dev:hosted": "vite --mode hosted --host 127.0.0.1",
     "test": "node --test",
-
-    "preview": "vite preview --host 0.0.0.0",
+    "preview": "vite preview --host 127.0.0.1",
     "start": "node scripts/local-site.mjs"
   },
   "dependencies": {
@@ -22,8 +21,6 @@
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
-    "esbuild": "^0.28.2",
-    "fflate": "^0.8.3",
     "vite": "^7.2.0"
   }
 }

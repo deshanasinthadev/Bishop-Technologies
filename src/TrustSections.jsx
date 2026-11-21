@@ -1,3 +1,5 @@
+import { faq, repairProcess } from './customer-copy.js'
+
 function googleLink(value) {
   try {
     const url = new URL(value)
@@ -31,22 +33,25 @@ export function About() {
         <p>Device repairs, technology products, and websites and software for businesses in Sri Lanka.</p>
       </div>
     </div>
-    <div className="business-info-grid">
-      <div>
-        <h3>How to request a repair</h3>
-        <ol>
-          <li>Tell us the device model and what’s wrong.</li>
-          <li>Send the enquiry through WhatsApp.</li>
-          <li>Ask about assessment, next steps, and expected timing.</li>
-        </ol>
-        <a className="button button-secondary" href="/repair#enquiry">Request a Repair</a>
-      </div>
-      <div>
-        <h3>Frequently asked questions</h3>
-        <details><summary>Can I ask about device compatibility?</summary><p>Yes. Include your device brand and model and the part or accessory you’re interested in.</p></details>
-        <details><summary>How do I confirm price and availability?</summary><p>Use the product’s WhatsApp enquiry button to ask about your preferred variant.</p></details>
-        <details><summary>Can I request a website or software quote?</summary><p>Yes. <a href="/web-software#enquiry">Tell us about your project</a> and what you want it to do.</p></details>
-      </div>
+  </section>
+}
+
+export function RepairProcess() {
+  return <section className="work-section shell" aria-labelledby="process-heading">
+    <h2 id="process-heading">How repairs work</h2>
+    <ol className="repair-process">{repairProcess.map((label) => <li key={label}>{label}</li>)}</ol>
+    <p>Ask about assessment, estimated cost and timing before agreeing to a repair. For questions about device handling or repair warranty, contact the shop.</p>
+  </section>
+}
+
+export function CustomerFaq() {
+  return <section className="work-section shell" aria-labelledby="faq-heading">
+    <h2 id="faq-heading">Frequently asked questions</h2>
+    <div className="customer-faq">
+      {faq.map(({ question, answer, link, action }) => <details key={question}>
+        <summary>{question}</summary>
+        <p>{answer} {link && <a href={link}>{action}</a>}</p>
+      </details>)}
     </div>
   </section>
 }

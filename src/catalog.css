@@ -22,6 +22,10 @@
   color: #122244;
 }
 .catalog textarea { min-height: 6rem; resize: vertical; }
+.catalog-disclosure { margin-block: .75rem; border-block: 1px solid var(--catalog-border); }
+.catalog-disclosure summary { min-height: 44px; padding-block: .65rem; cursor: pointer; font-weight: 650; }
+.catalog-disclosure > p { margin-bottom: .65rem; }
+.catalog-disclosure > .catalog-actions { margin-bottom: .75rem; }
 .catalog button:disabled { cursor: default; opacity: .55; }
 .catalog-photo {
   width: 100%;

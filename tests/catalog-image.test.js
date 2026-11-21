@@ -55,6 +55,12 @@ test('catalog image endpoint accepts only supported paths and validated image by
   await handler({ method:'GET', query:{ path } }, malformed)
   assert.equal(malformed.code, 404)
 
+  body = Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), Buffer.alloc(2 * 1024 * 1024)])
+  const oversized = capture()
+  await handler({ method:'GET', query:{ path } }, oversized)
+  assert.equal(oversized.code, 404)
+  assert.equal(oversized.body, undefined)
+
   upstreamStatus = 403
   const privateImage = capture()
   await handler({ method:'GET', query:{ path } }, privateImage)

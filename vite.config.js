@@ -1,6 +1,8 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { defineConfig, loadEnv } from 'vite'
+import { escapeHtml, productionOrigin } from './server/seo.js'
+import { hostedConfig } from './src/hosted-config.js'
 
 const home = ['Bishop Technologies | Repairs, Tech & Software', 'Bishop Technologies offers device repairs, tech products, and custom websites and software for small businesses in Sri Lanka.']
 const pages = {
@@ -10,21 +12,14 @@ const pages = {
   admin: ['Site Editor | Bishop Technologies', 'Manage your Bishop Technologies website.'],
 }
 
-function productionOrigin(value) {
-  if (!value) return ''
-  const url = new URL(value)
-  if (url.protocol !== 'https:' || url.href !== url.origin + '/') throw new Error('SITE_ORIGIN must be an HTTPS origin without a path.')
-  return url.origin
-}
-
-const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (character) => ({
-  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-})[character])
-
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const origin = productionOrigin(env.SITE_ORIGIN)
   const hosted = mode === 'hosted'
+  if (hosted && (env.VITE_SUPABASE_URL || env.VITE_SUPABASE_PUBLISHABLE_KEY) &&
+      !hostedConfig(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_PUBLISHABLE_KEY)) {
+    throw new Error('Set a valid Supabase origin and a publishable key for the hosted catalog.')
+  }
   const indexable = hosted && ['production', undefined].includes(process.env.VERCEL_ENV)
   let output
   return {

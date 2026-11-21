@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
 import { test } from 'node:test'
 import { pathToFileURL } from 'node:url'
 
@@ -31,8 +31,10 @@ test('catalog migration enforces publication, staff, stock, and image boundaries
     grant select on storage.objects to anon, authenticated;
     grant insert, delete on storage.objects to authenticated;
   `)
-  const sql = await readFile(new URL('../supabase/migrations/202611210001_catalog.sql', import.meta.url), 'utf8')
-  await database.exec(sql)
+  const migrations = new URL('../supabase/migrations/', import.meta.url)
+  for (const file of (await readdir(migrations)).filter((name) => name.endsWith('.sql')).sort()) {
+    await database.exec(await readFile(new URL(file, migrations), 'utf8'))
+  }
   await database.query('insert into auth.users values ($1,$4),($2,$5),($3,$6)', [owner,editor,visitor,'owner@example.test','editor@example.test','visitor@example.test'])
   await database.query("insert into bishop_private.staff_members values ($1,'owner',true),($2,'editor',true)", [owner,editor])
 
@@ -105,9 +107,23 @@ test('catalog migration enforces publication, staff, stock, and image boundaries
   assert.equal(updated.variants[0].price,1200)
   assert.equal(updated.variants[0].availability,'Out of Stock')
   await as('authenticated', owner)
-  assert.ok((await admin()).activity.some((item) => item.entity_type === 'inventory'))
+  const { activity } = await admin()
+  assert.ok(activity.some((item) => item.entity_type === 'inventory'))
+  assert.ok(activity.some(({ entity_type, entity_id, action, actor }) =>
+    entity_type === 'product_images' && entity_id === product && action === 'insert' && actor === editor))
   await call('bishop_save_business',[JSON.stringify({ address:'Test address', projects:[{ name:'Test gallery item' }] })],'::jsonb')
   assert.equal((await call('bishop_site_info')).projects[0].name,'Test gallery item')
+  const repair = {
+    name: 'Repair fixture', device_category: 'laptop', problem: 'Charging problem',
+    description: 'Replaced a damaged connector.', image: 'https://example.test/fixture.webp', repair_date: '2026-10-30',
+  }
+  const saveBusiness = (payload) => call('bishop_save_business', [JSON.stringify(payload)], '::jsonb')
+  await assert.rejects(() => saveBusiness({ projects: [{ ...repair, image: '' }] }), { code: '23514' })
+  await saveBusiness({ projects: [repair] })
+  await as('anon')
+  const [publicRepair] = (await call('bishop_site_info')).projects
+  for (const [key, value] of Object.entries(repair)) assert.equal(publicRepair[key], value)
+  await as('authenticated', owner)
   assert.equal('projects' in (await catalog()).business,false)
   await call('bishop_manage_editor',[editor,false])
   await as('authenticated', editor)
@@ -125,4 +141,7 @@ test('catalog migration enforces publication, staff, stock, and image boundaries
   await as('anon')
   assert.equal((await catalog()).products.length,0)
   assert.equal((await call('bishop_site_info')).featured.length,0)
+  await as('authenticated', owner)
+  assert.ok((await admin()).activity.some(({ entity_type, entity_id, action, actor }) =>
+    entity_type === 'product_images' && entity_id === product && action === 'delete' && actor === editor))
 })

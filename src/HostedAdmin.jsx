@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { isPasswordSetup, staffRpc, supabase } from './staff-client.js'
+import { deviceCategories } from './customer-copy.js'
 import './admin.css'
 import './catalog.css'
 
@@ -293,6 +294,10 @@ function OwnerSettings({ data, refresh }) {
     finally { setBusy(false) }
   }
   const projects = business.projects || []
+  function updateProject(id, key, value) {
+    change('projects', projects.map((project) => project.id === id ? { ...project, [key]: value } : project))
+  }
+
   return <section className="catalog-panel">
     <h2>Business contact settings</h2>
     <form className="catalog-form" onSubmit={(event) => { event.preventDefault(); run(() => staffRpc('bishop_save_business', { payload: business }), 'Business settings saved.') }}>
@@ -300,11 +305,22 @@ function OwnerSettings({ data, refresh }) {
       <Field name="hours" label="Opening hours" value={business.hours} change={change} maxLength={200} />
       <Field name="whatsapp" label="WhatsApp number for prefilled enquiries" value={business.whatsapp} change={change} type="tel" pattern="[+]?[1-9][0-9]{7,14}" />
       <h3>Repair gallery and completed work</h3>
+      <p>Use only photos cleared for publication. Leave out customer names, serial numbers and other identifying information.</p>
       {projects.map((item) => <fieldset className="catalog-form" key={item.id}>
         <legend>{item.name || 'New project'}</legend>
+        <label>Work type<select value={item.device_category || ''} onChange={(event) => updateProject(item.id, 'device_category', event.target.value)}>
+          <option value="">General completed work</option>
+          {deviceCategories.map(({ id, label }) => <option key={id} value={id}>{label} repair</option>)}
+        </select></label>
+        {item.device_category && <>
+          <Field name="problem" label="General problem" value={item.problem} required maxLength={160}
+            change={(key, value) => updateProject(item.id, key, value)} />
+          <Field name="repair_date" label="Repair date (optional)" value={item.repair_date} type="date"
+            change={(key, value) => updateProject(item.id, key, value)} />
+        </>}
         {[["name", "Project name"], ["description", "Description"], ["image", "Public HTTPS photo URL"], ["url", "Public HTTPS project URL"]].map(([key, label]) =>
-          <Field key={key} name={key} label={label} value={item[key]} required={key === 'name'} type={key === 'image' || key === 'url' ? 'url' : 'text'}
-            change={(_, value) => change('projects', projects.map((project) => project.id === item.id ? { ...project, [key]: value } : project))} />)}
+          <Field key={key} name={key} label={label} value={item[key]} required={key === 'name' || Boolean(item.device_category && ['image', 'description'].includes(key))} type={key === 'image' || key === 'url' ? 'url' : 'text'}
+            change={(field, value) => updateProject(item.id, field, value)} />)}
         <Button onClick={() => { if (window.confirm('Remove this project when settings are saved?')) change('projects', projects.filter(({ id }) => id !== item.id)) }}>Remove project</Button>
       </fieldset>)}
       <Button disabled={projects.length >= 30} onClick={() => change('projects', [...projects, { id: crypto.randomUUID(), name: '', description: '', image: '', url: '' }])}>Add completed work</Button>
@@ -341,6 +357,7 @@ function Dashboard({ data, session, refresh, signOut, enroll }) {
   const [working, setWorking] = useState(false)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
+  const [onlyLowStock, setOnlyLowStock] = useState(false)
   const [category, setCategory] = useState('')
   const [brand, setBrand] = useState('')
   const [sort, setSort] = useState('recent')
@@ -387,7 +404,12 @@ function Dashboard({ data, session, refresh, signOut, enroll }) {
     {message && <p role="status">{message}</p>}
     {editor ? <ProductEditor initial={editor} categories={data.categories} userId={session.user.id} save={saved} close={(warning) => { setEditor(null); setMessage(warning) }} /> : <>
       {tab === 'Overview' && <section className="catalog-panel">
-        <div className="catalog-actions"><h2>Overview</h2><Button onClick={addProduct}>Add Product</Button></div>
+        <h2>Overview</h2>
+        <div className="catalog-actions">
+          <Button onClick={addProduct}>Add Product</Button>
+          <Button onClick={() => { setStatus('draft'); setSearch(''); setCategory(''); setBrand(''); setPage(1); setTab('Products') }}>Draft Products</Button>
+          <Button onClick={() => { setOnlyLowStock(true); setTab('Inventory') }}>Low Stock</Button>
+        </div>
         <dl className="catalog-metrics">{[
           ['Total products', data.products.length], ...statuses.map((value) => [value + ' products', data.products.filter((item) => item.status === value).length]),
           ['Out-of-stock products', out.length], ['Low-stock variants', low.length],
@@ -440,8 +462,10 @@ function Dashboard({ data, session, refresh, signOut, enroll }) {
       </section>}
       {tab === 'Inventory' && <section className="catalog-panel">
         <h2>Variant inventory</h2>
-        {!variants.length && <p>No active variants yet.</p>}
-        <ul className="catalog-records">{variants.map((item) => <li key={item.id}><div>
+        <Toggle label="Show low stock only" checked={onlyLowStock} onChange={setOnlyLowStock} />
+        {onlyLowStock && !low.length && <p>No low-stock alerts.</p>}
+        {!onlyLowStock && !variants.length && <p>No active variants yet.</p>}
+        <ul className="catalog-records">{(onlyLowStock ? low : variants).map((item) => <li key={item.id}><div>
           <strong>{item.product.name} · {item.name}</strong>
           <p>{item.sku} · {item.quantity} in stock ? Low-stock threshold {item.threshold}</p>
           {item.stock_updated_at && <p>Stock updated {new Date(item.stock_updated_at).toLocaleString('en-LK')}</p>}
@@ -465,34 +489,45 @@ export function HostedAdmin() {
   const [mode, setMode] = useState('')
   const [data, setData] = useState(null)
   const [failure, setFailure] = useState('')
+  const identity = useRef({ userId: undefined })
 
   useEffect(() => {
     if (!supabase) return
     const { data: subscription } = supabase.auth.onAuthStateChange((event, next) => {
       if (event === 'PASSWORD_RECOVERY') setRecovery(true)
-      if (event === 'SIGNED_OUT') {
+      const userId = next?.user.id
+      if (identity.current.userId !== userId) {
+        identity.current = { userId }
         setFailure('')
         setData(null)
-        setRecovery(false)
         setMode('')
       }
+      if (event === 'SIGNED_OUT') setRecovery(false)
       setSession(next)
     })
-    return () => subscription.subscription.unsubscribe()
+    return () => {
+      identity.current = { userId: undefined }
+      subscription.subscription.unsubscribe()
+    }
   }, [])
 
+  const currentIdentity = identity.current
+
   async function refresh() {
-    setData(await staffRpc('bishop_admin_catalog'))
+    if (identity.current !== currentIdentity) return
+    const next = await staffRpc('bishop_admin_catalog')
+    if (identity.current === currentIdentity) setData(next)
   }
   async function authorize() {
     const { data: assurance, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+    if (identity.current !== currentIdentity) return
     if (error) throw new Error('The session could not be verified.')
     if (assurance.currentLevel !== 'aal2' && assurance.nextLevel === 'aal2') {
       setMode('challenge')
       return
     }
     await refresh()
-    setMode('')
+    if (identity.current === currentIdentity) setMode('')
   }
 
   const userId = session?.user.id
@@ -500,12 +535,14 @@ export function HostedAdmin() {
     if (!userId || recovery) return
     setData(null)
     setFailure('')
-    authorize().catch((issue) => setFailure(issue.message))
-  }, [userId, recovery])
+    authorize().catch((issue) => {
+      if (identity.current === currentIdentity) setFailure(issue.message)
+    })
+  }, [currentIdentity, userId, recovery])
 
   async function signOut() {
     const { error } = await supabase.auth.signOut()
-    if (error) setFailure('Sign-out failed. Close this tab to end the local session.')
+    if (error && identity.current === currentIdentity) setFailure('Sign-out failed. Close this tab to end the local session.')
   }
 
   return <main className="shell catalog catalog-admin">
