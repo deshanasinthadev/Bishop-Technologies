@@ -1,29 +1,15 @@
 import { useId, useState } from 'react'
-import { whatsappUrl } from './whatsapp.js'
+import { whatsappLink, whatsappUrl } from './whatsapp.js'
 
 const nameField = { name: 'name', label: 'Name', autoComplete: 'name', placeholder: 'Your name' }
 const phoneField = { name: 'phone', type: 'tel', autoComplete: 'tel', placeholder: 'Your phone number' }
 
-const forms = {
-  repair: {
-    opening: 'Hi Bishop Technologies, I would like to ask about a repair.',
-    fields: [
-      nameField,
-      { ...phoneField, label: 'Phone number' },
-      { name: 'device', label: 'Device model', placeholder: 'Brand and model', wide: true },
-      { name: 'issue', label: 'Issue', placeholder: 'Tell us what happened to your device', multiline: true },
-    ],
-  },
-  quote: {
-    opening: 'Hi Bishop Technologies, I would like to request a quote for a project.',
-    fields: [
-      nameField,
-      { name: 'organisation', label: 'Business name', autoComplete: 'organization', placeholder: 'Your business name' },
-      { ...phoneField, label: 'Contact number', wide: true },
-      { name: 'description', label: 'What do you need?', placeholder: 'Tell us a little about your project', multiline: true },
-    ],
-  },
-}
+const fields = [
+  nameField,
+  { name: 'organisation', label: 'Business name', autoComplete: 'organization', placeholder: 'Your business name' },
+  { ...phoneField, label: 'Contact number', wide: true },
+  { name: 'description', label: 'What do you need?', placeholder: 'Tell us a little about your project', multiline: true },
+]
 
 async function copyMessage(message) {
   try {
@@ -57,21 +43,21 @@ export function CopyEnquiry({ message, className = 'button button-secondary', ch
   const [status, setStatus] = useState('')
 
   async function handleCopy() {
+    setStatus('copying')
     setStatus(await copyMessage(message) ? 'copied' : 'manual')
   }
 
   return (
     <div className="copy-enquiry">
-      <button className={className} type="button" onClick={handleCopy}>{children}</button>
+      <button className={className} type="button" disabled={status === 'copying'} onClick={handleCopy}>{status === 'copying' ? 'Copying…' : children}</button>
       <CopyFeedback status={status} message={message} />
     </div>
   )
 }
 
-export function EnquiryForm({ kind, whatsapp }) {
+export function EnquiryForm({ whatsapp }) {
   const id = useId()
   const [result, setResult] = useState(null)
-  const { opening, fields } = forms[kind]
   const canSend = Boolean(whatsappUrl('', whatsapp))
 
   async function handleSubmit(event) {
@@ -102,7 +88,7 @@ export function EnquiryForm({ kind, whatsapp }) {
       lines.push(`${field.label}: ${value}`)
     }
 
-    const message = [opening, '', ...lines].join('\n')
+    const message = ['Hi Bishop Technologies, I would like to request a quote for a project.', '', ...lines].join('\n')
     if (canSend) {
       window.open(whatsappUrl(message, whatsapp), '_blank', 'noopener,noreferrer')
       return
@@ -131,12 +117,14 @@ export function EnquiryForm({ kind, whatsapp }) {
           </div>
         ))}
       </div>
+      <p className="enquiry-privacy">The website keeps these details in this form. They go to Bishop Technologies only when you send the WhatsApp message.</p>
       {!canSend && (
-        <p className="notice">Online sending is unavailable right now. You can copy your enquiry below.</p>
+        <p className="notice">Copy your enquiry below, then paste it into your WhatsApp chat.</p>
       )}
       <button className="button button-primary" type="submit">
         {canSend ? 'Open WhatsApp' : 'Copy enquiry'}
       </button>
+      {!canSend && <a className="button button-secondary enquiry-chat" href={whatsappLink} target="_blank" rel="noopener noreferrer">Open WhatsApp</a>}
       <CopyFeedback status={result?.status} message={result?.message} />
     </form>
   )

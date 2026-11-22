@@ -1,0 +1,34 @@
+name: Verify website
+
+on:
+  pull_request:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Run tests with an isolated PostgreSQL fixture
+        run: |
+          npm install --prefix "$RUNNER_TEMP/bishop-db" --no-audit --no-fund @electric-sql/pglite@0.5.17
+          BISHOP_PGLITE_MODULE="$RUNNER_TEMP/bishop-db/node_modules/@electric-sql/pglite/dist/index.js" npm test
+      - run: npm run build && node scripts/check-build.mjs dist local
+      - name: Verify hosted preview build
+        env:
+          VERCEL_ENV: preview
+          SITE_ORIGIN: https://bishop.example.test
+        run: npm run build:hosted -- --outDir dist-hosted && node scripts/check-build.mjs dist-hosted preview
+      - name: Verify hosted production build
+        env:
+          VERCEL_ENV: production
+          SITE_ORIGIN: https://bishop.example.test
+        run: npm run build:hosted -- --outDir dist-hosted && node scripts/check-build.mjs dist-hosted production

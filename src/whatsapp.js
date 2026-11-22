@@ -1,3 +1,5 @@
+export const whatsappLink = 'https://wa.me/message/FPYLPFMRB7D5L1'
+
 export function whatsappUrl(message = '', contact = '') {
   const compact = String(contact ?? '').trim().replace(/[\s().-]/g, '')
   const international = compact.replace(/^(?:\+|00)/, '')

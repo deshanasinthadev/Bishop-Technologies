@@ -4,7 +4,7 @@ export const business = {
   // Enter an international number, including country code.
   whatsapp: '',
   address: '',
-  directionsUrl: '',
+  directionsUrl: 'https://share.google/hzkr9iv7tOhYueV00',
   hours: '',
 }
 

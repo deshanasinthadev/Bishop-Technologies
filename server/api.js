@@ -1,8 +1,8 @@
 import { defaultContent } from '../src/content.js'
 import { whatsappUrl } from '../src/whatsapp.js'
+import { imageExtensions, maxImageBytes, validImageSignature } from './media.js'
 
 const maxContentBytes = 256 * 1024
-const maxImageBytes = 2 * 1024 * 1024
 const jsonHeaders = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }
 
 function json(value, status = 200) {
@@ -124,10 +124,8 @@ function normalizeContent(value) {
 }
 
 function imageType(type, bytes) {
-  const startsWith = (signature, index = 0) => signature.every((byte, offset) => bytes[index + offset] === byte)
-  if (type === 'image/jpeg' && startsWith([255, 216, 255])) return 'jpg'
-  if (type === 'image/png' && startsWith([137, 80, 78, 71, 13, 10, 26, 10])) return 'png'
-  if (type === 'image/webp' && startsWith([82, 73, 70, 70]) && startsWith([87, 69, 66, 80], 8)) return 'webp'
+  const extension = imageExtensions[type]
+  if (validImageSignature(bytes, extension)) return extension
   throw new InputError('Choose a JPG, PNG, or WebP image.', 415)
 }
 
